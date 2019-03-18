@@ -1,0 +1,6 @@
+Source: openenclave
+Version: 0.5.1
+Description: SDK for developing enclaves
+
+Feature: flc
+Description: SGX1-FLC support
