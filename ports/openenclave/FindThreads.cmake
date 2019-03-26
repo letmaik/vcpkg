@@ -1,0 +1,4 @@
+set(Threads_FOUND TRUE)
+set(CMAKE_USE_PTHREADS_INIT TRUE)
+set(CMAKE_THREAD_LIBS_INIT "")
+add_library(Threads::Threads INTERFACE IMPORTED)

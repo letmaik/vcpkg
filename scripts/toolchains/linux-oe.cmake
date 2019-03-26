@@ -38,45 +38,50 @@ set(linker_flags "-nostdlib -nodefaultlibs -nostartfiles -Wl,--no-undefined,-Bst
 set(link_dir "${libdir}/openenclave/enclave")
 set(link_libs oeenclave mbedx509 mbedcrypto oelibcxx oelibc oecore)
 
-set(defs
-    # important as it's used in public OE headers
-    # TODO how to keep this up-to-date?
-    -DOE_API_VERSION=2
-    # TODO needed? not used in public headers
-    -DOE_USE_LIBSGX
-    # TODO needed? not used in public headers
-    -DOE_BUILD_ENCLAVE
-    )
+# TODO how to keep this up-to-date?
+# TODO OE_API_VERSION is supposed to be set by the user, not here
+# TODO OE_USE_LIBSGX/OE_BUILD_ENCLAVE needed? not used in public headers
+set(defs "-DOE_API_VERSION=2 -DOE_USE_LIBSGX -DOE_BUILD_ENCLAVE")
 
 set(compile_flags "-nostdinc -m64 -fPIC -fno-stack-protector -fvisibility=hidden")
 
-set(include_dirs
-    $<$<COMPILE_LANGUAGE:CXX>:${includedir}/openenclave/3rdparty/libcxx>
-    ${includedir}/openenclave/3rdparty/libc 
-    ${includedir}/openenclave/3rdparty
-    ${includedir}
-    )
+# Temporary work-around: add compiler intrinsics headers to includes
+# TODO this should probably be provided by OE
+# FIXME CMAKE_C_COMPILER is not set yet (only after project()), so use gcc for now
+#  -> Note that clang has it's own folder!
+set(C_COMPILER gcc)
+execute_process(
+    COMMAND /bin/bash ${CMAKE_CURRENT_LIST_DIR}/get_c_compiler_dir.sh ${C_COMPILER}
+    OUTPUT_VARIABLE C_COMPILER_INCDIR
+    ERROR_VARIABLE err)
+if (NOT err STREQUAL "")
+    message(FATAL_ERROR ${err})
+endif ()
 
-# Note: This check only works when try_compile is used in project variant, not
-# in source file variant. For the source file variant, the generated CMakeLists.txt
-# copies over all compiler and linker variables to the CMakeLists.txt directly.
-# TODO what's the point of the check? when would this help?
-get_property( _CMAKE_IN_TRY_COMPILE GLOBAL PROPERTY IN_TRY_COMPILE )
-if(NOT _CMAKE_IN_TRY_COMPILE)
-    string(APPEND CMAKE_C_FLAGS_INIT " ${compile_flags} ${VCPKG_C_FLAGS} ")
-    string(APPEND CMAKE_CXX_FLAGS_INIT " ${compile_flags} ${VCPKG_CXX_FLAGS} ")
-    string(APPEND CMAKE_C_FLAGS_DEBUG_INIT " ${VCPKG_C_FLAGS_DEBUG} ")
-    string(APPEND CMAKE_CXX_FLAGS_DEBUG_INIT " ${VCPKG_CXX_FLAGS_DEBUG} ")
-    string(APPEND CMAKE_C_FLAGS_RELEASE_INIT " ${VCPKG_C_FLAGS_RELEASE} ")
-    string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " ${VCPKG_CXX_FLAGS_RELEASE} ")
+set(include_dirs_c
+    "-I${includedir}/openenclave/3rdparty/libc -I${includedir}/openenclave/3rdparty -I${includedir} -I${C_COMPILER_INCDIR}")
 
-    include_directories(${include_dirs})
-    add_definitions(${defs})
+set(include_dirs_cxx
+    "-I${includedir}/openenclave/3rdparty/libcxx ${include_dirs_c}")
 
-    string(APPEND CMAKE_SHARED_LINKER_FLAGS_INIT " ${linker_flags} ${VCPKG_LINKER_FLAGS} ")
-    string(APPEND CMAKE_EXE_LINKER_FLAGS_INIT " ${linker_flags} ${VCPKG_LINKER_FLAGS} ")
+string(APPEND CMAKE_C_FLAGS_INIT " ${compile_flags} ${include_dirs_c} ${defs} ${VCPKG_C_FLAGS} ")
+string(APPEND CMAKE_CXX_FLAGS_INIT " ${compile_flags} ${include_dirs_cxx} ${defs} ${VCPKG_CXX_FLAGS} ")
+string(APPEND CMAKE_C_FLAGS_DEBUG_INIT " ${VCPKG_C_FLAGS_DEBUG} ")
+string(APPEND CMAKE_CXX_FLAGS_DEBUG_INIT " ${VCPKG_CXX_FLAGS_DEBUG} ")
+string(APPEND CMAKE_C_FLAGS_RELEASE_INIT " ${VCPKG_C_FLAGS_RELEASE} ")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " ${VCPKG_CXX_FLAGS_RELEASE} ")
 
-    link_directories(${link_dir})
-    link_libraries(${link_libs})
-endif()
+string(APPEND CMAKE_SHARED_LINKER_FLAGS_INIT " ${linker_flags} ${VCPKG_LINKER_FLAGS} ")
+string(APPEND CMAKE_EXE_LINKER_FLAGS_INIT " ${linker_flags} ${VCPKG_LINKER_FLAGS} ")
+
+# We can't use CMAKE_*_LINKER_FLAGS_INIT to add libraries because the ordering
+# wouldn't be right. Instead, inject the linked libraries and search paths to all targets.
+# Note that this is not used in try_compile, but that should be fine.
+link_directories(${link_dir})
+link_libraries(${link_libs})
+
+# so that find_package(Threads) is a no-op
+set(prefix_oe ${CMAKE_CURRENT_LIST_DIR}/../../installed/x64-linux-oe)
+set(CMAKE_MODULE_PATH ${prefix_oe}/share/openenclave/cmake ${CMAKE_MODULE_PATH})
+
 endif()

@@ -22,6 +22,9 @@ if (VCPKG_OE_BUILD_ENCLAVE)
     file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/share/openenclave")
     file(COPY ${ROOT_INSTALLED_DIR}/x64-linux/share/openenclave/copyright
          DESTINATION ${CURRENT_PACKAGES_DIR}/share/openenclave)
+    file(MAKE_DIRECTORY "${CURRENT_PACKAGES_DIR}/share/openenclave/cmake")
+    file(COPY ${CMAKE_CURRENT_LIST_DIR}/FindThreads.cmake
+         DESTINATION ${CURRENT_PACKAGES_DIR}/share/openenclave/cmake)
     return()
 endif()
 
