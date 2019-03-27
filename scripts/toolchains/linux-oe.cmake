@@ -28,8 +28,7 @@ endif()
 # TODO OE_USE_LIBSGX/OE_BUILD_ENCLAVE needed? not used in public headers
 set(defs "-DOE_API_VERSION=2 -DOE_USE_LIBSGX -DOE_BUILD_ENCLAVE")
 
-# Note: -nostdinc is defined below as it would otherwise be wrongly ordered.
-set(compile_flags "-m64 -fPIC -fno-stack-protector -fvisibility=hidden")
+set(compile_flags "-nostdinc -m64 -fPIC -fno-stack-protector -fvisibility=hidden")
 
 string(APPEND CMAKE_C_FLAGS_INIT " ${compile_flags} ${defs} ${VCPKG_C_FLAGS} ")
 string(APPEND CMAKE_CXX_FLAGS_INIT " ${compile_flags} ${defs} ${VCPKG_CXX_FLAGS} ")
@@ -58,23 +57,18 @@ set(common_include_dirs
     ${C_COMPILER_INCDIR}
 )
 
-# FIXME For some reason ${includedir} appears first, before -nostdinc, then the rest.
-#       This is problematic as all -isystem before -nostdinc are ignored by GCC.
-# TODO adding -nostdinc here is a hack as it will result in "-isystem -nostdinc"
-#     -> problem is that -nostdinc has to appear before all following -isystem
-#  As work-around we could avoid using CMAKE_<LANG>_STANDARD_INCLUDE_DIRECTORIES
-#  and put everything into CMAKE_<LANG>_FLAGS_INIT, even though it's less clean.
-#  Different to the linker, the ordering is not as critical and this would generally work.
 set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES
-    -nostdinc
     ${common_include_dirs}
     )
 
 set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES
-    -nostdinc
     ${includedir}/openenclave/3rdparty/libcxx
     ${common_include_dirs}
     )
+
+set(link_dir "${libdir}/openenclave/enclave")
+set(link_libs_c oeenclave mbedx509 mbedcrypto oelibc oecore)
+set(link_libs_cxx oeenclave mbedx509 mbedcrypto oelibcxx oelibc oecore)
 
 set(CMAKE_C_STANDARD_LIBRARIES "-L${link_dir}")
 set(CMAKE_CXX_STANDARD_LIBRARIES "-L${link_dir}")
@@ -95,10 +89,6 @@ endforeach()
 # OE tools like oeedger8r or oesign can be located with
 # find_program() after running 'vcpkg install openenclave:x64-linux-oe'.
 set(linker_flags "-nostdlib -nodefaultlibs -nostartfiles -Wl,--no-undefined,-Bstatic,-Bsymbolic,--export-dynamic,-pie,--build-id")
-
-set(link_dir "${libdir}/openenclave/enclave")
-set(link_libs_c oeenclave mbedx509 mbedcrypto oelibc oecore)
-set(link_libs_cxx oeenclave mbedx509 mbedcrypto oelibcxx oelibc oecore)
 
 string(APPEND CMAKE_SHARED_LINKER_FLAGS_INIT " ${linker_flags} ${VCPKG_LINKER_FLAGS} ")
 string(APPEND CMAKE_EXE_LINKER_FLAGS_INIT " ${linker_flags} ${VCPKG_LINKER_FLAGS} ")
